@@ -1,4 +1,4 @@
-package com.github.nonda95.composeinject.app
+package pl.osmalek.bartek.composeinject.app
 
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click

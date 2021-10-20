@@ -16,10 +16,11 @@ pluginManagement {
     }
 }
 
-rootProject.name = ("composeinject")
+rootProject.name = ("ComposeInject")
 
 include(
     "app",
-    "library-android",
-    "library-kotlin"
+    "processor",
+    "compose",
+    "annotation"
 )
