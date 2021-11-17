@@ -10,12 +10,13 @@ import dagger.Binds
 import dagger.Module
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
-import java.io.File
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.Processor
 import javax.annotation.processing.RoundEnvironment
 import javax.inject.Inject
+import javax.lang.model.AnnotatedConstruct
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.AnnotationMirror
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.Modifier
@@ -24,6 +25,8 @@ import javax.tools.Diagnostic
 
 @AutoService(Processor::class)
 class ComposeInjectProcessor : AbstractProcessor() {
+    private var userModuleName: ClassName? = null
+
     override fun getSupportedSourceVersion(): SourceVersion = SourceVersion.latest()
     override fun getSupportedAnnotationTypes() = setOf(
         ComposeInject::class.java.canonicalName,
@@ -57,13 +60,14 @@ class ComposeInjectProcessor : AbstractProcessor() {
                     error("Can only be applied to class", element)
                     return false
                 }
-//                if ((element as TypeElement).(Module::class.java)) {
-//                    error("Can only be applied to Dagger Module", element)
-//                    return false
-//                }
+                if (element.getAnnotation("dagger.Module") == null) {
+                    error("Can only be applied to Dagger Module", element)
+                    return false
+                }
                 val moduleClassName = ClassName.get(element as TypeElement)
+                userModuleName = moduleClassName
                 val fileName =
-                    "ComposeInject_${moduleClassName.simpleNames().joinToString(separator = ".")}"
+                    moduleClassName.toComposeInjectModuleName()
                 val composeModuleClassName = ClassName.get(moduleClassName.packageName(), fileName)
 
                 val type = TypeSpec.classBuilder(composeModuleClassName)
@@ -102,8 +106,34 @@ class ComposeInjectProcessor : AbstractProcessor() {
                     .build()
                 fileSpec.writeTo(processingEnv.filer)
             }
+//        if (roundEnv.processingOver() && userModuleName != null) {
+//            val userModuleName = userModuleName!!
+//            val composeModuleClassName = ClassName.get(
+//                userModuleName.packageName(),
+//                userModuleName.toComposeInjectModuleName()
+//            )
+//            val userModule =
+//                processingEnv.elementUtils.getTypeElement(userModuleName.canonicalName())
+//            val annotationValue = userModule.getAnnotation("dagger.Module")!!
+//                .elementValues
+//                .entries
+//                .firstOrNull { it.key.simpleName.contentEquals("includes") }
+//                ?.value as? Attribute.Array
+//            val referencesGeneratedModule = annotationValue?.values?.map { TypeName.get(it.type) }
+//                ?.any { it == composeModuleClassName } ?: false
+//            if (!referencesGeneratedModule) {
+//                error(
+//                    "@ComposeInjectModule's @Module must include ${composeModuleClassName.simpleName()}",
+//                    userModule
+//                )
+//                return false
+//            }
+//        }
         return true
     }
+
+    private fun ClassName.toComposeInjectModuleName() =
+        "ComposeInject_${simpleNames().joinToString(separator = ".")}"
 
     private fun error(message: String, element: Element?) {
         processingEnv.messager.printMessage(
@@ -111,5 +141,11 @@ class ComposeInjectProcessor : AbstractProcessor() {
             message,
             element
         )
+    }
+}
+
+private fun AnnotatedConstruct.getAnnotation(qualifiedName: String): AnnotationMirror? {
+    return annotationMirrors.firstOrNull {
+        (it.annotationType.asElement() as? TypeElement)?.qualifiedName.contentEquals(qualifiedName)
     }
 }

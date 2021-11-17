@@ -53,12 +53,12 @@ class MainActivity : AppCompatActivity() {
     @Composable
     private fun ProviderComposable(color: Color, injected: Provider<Injected> = provider()) {
         val get = injected.get()
-        Log.wtf("COMPOSE", "Provider $color: $get")
+        Log.wtf("COMPOSE", "Provider $injected $color: $get")
         Text(text = get.value, color = color)
     }
 
     @ComposeInject
     class Injected @Inject constructor() {
-        val value: String = "Hello!"
+        val value: String = toString()
     }
 }

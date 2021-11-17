@@ -9,7 +9,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import javax.inject.Provider
 
 interface Injector {
-    fun <T : Any> get(clazz: Class<T>): T
+    fun <T : Any> get(clazz: Class<T>): T = provider(clazz).get()
+    fun <T : Any> provider(clazz: Class<T>): Provider<T>
 }
 
 @Composable
@@ -39,7 +40,7 @@ inline fun <reified T : Any> inject(): T {
 @Composable
 inline fun <reified T : Any> provider(): Provider<T> {
     val injector = LocalInjector.current
-    return Provider { injector.get(T::class.java) }
+    return injector.provider(T::class.java)
 }
 
 @Composable

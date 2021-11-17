@@ -7,7 +7,7 @@ import javax.inject.Provider
 class ComposeInjector @Inject constructor(
     @ComposeInjectMap private val providers: Map<Class<*>, @JvmSuppressWildcards Provider<Any>>
 ) : Injector {
-    override fun <T: Any> get(clazz: Class<T>): T {
-        return providers.getValue(clazz).get() as T
+    override fun <T : Any> provider(clazz: Class<T>): Provider<T> {
+        return providers.getValue(clazz) as Provider<T>
     }
 }
