@@ -23,115 +23,121 @@ import org.gradle.api.tasks.bundling.Jar
  * Make sure to copy over also buildSrc/build.gradle.kts otherwise this plugin will fail to compile due to missing dependencies.
  */
 plugins {
-    id("maven-publish")
-    id("signing")
-    id("org.jetbrains.dokka")
+  id("maven-publish")
+  id("signing")
+  id("org.jetbrains.dokka")
 }
 
 val dokkaJar = tasks.create<Jar>("dokkaJar") {
-    group = "build"
-    description = "Assembles Javadoc jar from Dokka API docs"
-    archiveClassifier.set("javadoc")
-    from(tasks.dokkaJavadoc)
+  group = "build"
+  description = "Assembles Javadoc jar from Dokka API docs"
+  archiveClassifier.set("javadoc")
+  from(tasks.dokkaJavadoc)
 }
 
 val sourcesJar = tasks.register<Jar>("sourcesJar") {
-    group = "build"
-    description = "Assembles Source jar for publishing"
-    archiveClassifier.set("sources")
-    if (plugins.hasPlugin("com.android.library")) {
-        from((project.extensions.getByName("android") as LibraryExtension).sourceSets.named("main").get().java.srcDirs)
-    } else {
-        from((project.extensions.getByName("sourceSets") as SourceSetContainer).named("main").get().allSource)
-    }
+  group = "build"
+  description = "Assembles Source jar for publishing"
+  archiveClassifier.set("sources")
+  if (plugins.hasPlugin("com.android.library")) {
+    from(
+      (project.extensions.getByName("android") as LibraryExtension).sourceSets.named("main")
+        .get().java.srcDirs
+    )
+  } else {
+    from(
+      (project.extensions.getByName("sourceSets") as SourceSetContainer).named("main")
+        .get().allSource
+    )
+  }
 }
 
 tasks.dokkaJavadoc.configure {
-    outputDirectory.set(buildDir.resolve("javadoc"))
-    dokkaSourceSets {
-        configureEach {
-            sourceRoot(file("src"))
-        }
+  outputDirectory.set(buildDir.resolve("javadoc"))
+  dokkaSourceSets {
+    configureEach {
+      sourceRoot(file("src"))
     }
+  }
 }
 
 
 afterEvaluate {
 
-    publishing {
-        repositories {
-            maven {
-                name = "nexus"
-                url = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
-                credentials {
-                    username = "NEXUS_USERNAME".byProperty
-                    password = "NEXUS_PASSWORD".byProperty
-                }
-            }
-            maven {
-                name = "snapshot"
-                url = uri("https://oss.sonatype.org/content/repositories/snapshots")
-                credentials {
-                    username = "NEXUS_USERNAME".byProperty
-                    password = "NEXUS_PASSWORD".byProperty
-                }
-            }
+  publishing {
+    repositories {
+      maven {
+        name = "nexus"
+        url = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
+        credentials {
+          username = "NEXUS_USERNAME".byProperty
+          password = "NEXUS_PASSWORD".byProperty
         }
-
-        publications {
-            create<MavenPublication>("release") {
-                if (plugins.hasPlugin("com.android.library")) {
-                    from(components["release"])
-                } else {
-                    from(components["java"])
-                }
-                artifact(dokkaJar)
-                artifact(sourcesJar)
-
-                pom {
-                    if (!"USE_SNAPSHOT".byProperty.isNullOrBlank()) {
-                        version = "$version-SNAPSHOT"
-                    }
-                    description.set("A template for Kotlin Android projects")
-                    url.set("https://github.com/nonda95/composeinject/")
-
-                    licenses {
-                        license {
-                            name.set("The MIT License")
-                            url.set("https://opensource.org/licenses/MIT")
-                        }
-                    }
-                    developers {
-                        developer {
-                            id.set("nonda95")
-                            name.set("nonda95")
-                        }
-                    }
-                    scm {
-                        connection.set("scm:git:git://github.com/nonda95/composeinject.git")
-                        developerConnection.set("scm:git:ssh://github.com/nonda95/composeinject.git")
-                        url.set("https://github.com/nonda95/composeinject/")
-                    }
-                    issueManagement {
-                        system.set("GitHub Issues")
-                        url.set("https://github.com/nonda95/composeinject/issues")
-                    }
-                }
-            }
+      }
+      maven {
+        name = "snapshot"
+        url = uri("https://oss.sonatype.org/content/repositories/snapshots")
+        credentials {
+          username = "NEXUS_USERNAME".byProperty
+          password = "NEXUS_PASSWORD".byProperty
         }
-
-        val signingKey = "SIGNING_KEY".byProperty
-        val signingPwd = "SIGNING_PWD".byProperty
-        if (signingKey.isNullOrBlank() || signingPwd.isNullOrBlank()) {
-            logger.info("Signing Disable as the PGP key was not found")
-        } else {
-            logger.info("GPG Key found - Signing enabled")
-            signing {
-                useInMemoryPgpKeys(signingKey, signingPwd)
-                sign(publishing.publications["release"])
-            }
-        }
+      }
     }
+
+    publications {
+      create<MavenPublication>("release") {
+        if (plugins.hasPlugin("com.android.library")) {
+          from(components["release"])
+        } else {
+          from(components["java"])
+        }
+        artifact(dokkaJar)
+        artifact(sourcesJar)
+
+        pom {
+          if (!"USE_SNAPSHOT".byProperty.isNullOrBlank()) {
+            version = "$version-SNAPSHOT"
+          }
+          description.set("A template for Kotlin Android projects")
+          url.set("https://github.com/nonda95/composeinject/")
+
+          licenses {
+            license {
+              name.set("The MIT License")
+              url.set("https://opensource.org/licenses/MIT")
+            }
+          }
+          developers {
+            developer {
+              id.set("nonda95")
+              name.set("nonda95")
+            }
+          }
+          scm {
+            connection.set("scm:git:git://github.com/nonda95/composeinject.git")
+            developerConnection.set("scm:git:ssh://github.com/nonda95/composeinject.git")
+            url.set("https://github.com/nonda95/composeinject/")
+          }
+          issueManagement {
+            system.set("GitHub Issues")
+            url.set("https://github.com/nonda95/composeinject/issues")
+          }
+        }
+      }
+    }
+
+    val signingKey = "SIGNING_KEY".byProperty
+    val signingPwd = "SIGNING_PWD".byProperty
+    if (signingKey.isNullOrBlank() || signingPwd.isNullOrBlank()) {
+      logger.info("Signing Disable as the PGP key was not found")
+    } else {
+      logger.info("GPG Key found - Signing enabled")
+      signing {
+        useInMemoryPgpKeys(signingKey, signingPwd)
+        sign(publishing.publications["release"])
+      }
+    }
+  }
 }
 
 val String.byProperty: String? get() = findProperty(this) as? String

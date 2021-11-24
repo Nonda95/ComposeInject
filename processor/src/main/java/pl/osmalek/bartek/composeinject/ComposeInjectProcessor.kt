@@ -5,6 +5,7 @@ import com.squareup.javapoet.AnnotationSpec
 import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
+import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
 import dagger.Binds
 import dagger.Module
@@ -25,127 +26,143 @@ import javax.tools.Diagnostic
 
 @AutoService(Processor::class)
 class ComposeInjectProcessor : AbstractProcessor() {
-    private var userModuleName: ClassName? = null
+  private var userModuleName: ClassName? = null
 
-    override fun getSupportedSourceVersion(): SourceVersion = SourceVersion.latest()
-    override fun getSupportedAnnotationTypes() = setOf(
-        ComposeInject::class.java.canonicalName,
-        ComposeInjectModule::class.java.canonicalName,
-    )
+  override fun getSupportedSourceVersion(): SourceVersion = SourceVersion.latest()
+  override fun getSupportedAnnotationTypes() = setOf(
+    ComposeInject::class.java.canonicalName,
+    ComposeInjectModule::class.java.canonicalName,
+  )
 
-    override fun process(
-        annotations: MutableSet<out TypeElement>?,
-        roundEnv: RoundEnvironment
-    ): Boolean {
-        val injectedTypes = roundEnv.getElementsAnnotatedWith(ComposeInject::class.java)
-            .map { element ->
-                if (element.kind != ElementKind.CLASS) {
-                    error("Can only be applied to class", element)
-                    return false
-                }
-                if (
-                    element.enclosedElements.none {
-                        it.kind == ElementKind.CONSTRUCTOR &&
-                                it.getAnnotation(Inject::class.java) != null
-                    }
-                ) {
-                    error("Can only be applied to class with @Inject constructor", element)
-                    return false
-                }
-                element as TypeElement
-            }
-        roundEnv.getElementsAnnotatedWith(ComposeInjectModule::class.java)
-            .forEach { element ->
-                if (element.kind != ElementKind.CLASS) {
-                    error("Can only be applied to class", element)
-                    return false
-                }
-                if (element.getAnnotation("dagger.Module") == null) {
-                    error("Can only be applied to Dagger Module", element)
-                    return false
-                }
-                val moduleClassName = ClassName.get(element as TypeElement)
-                userModuleName = moduleClassName
-                val fileName =
-                    moduleClassName.toComposeInjectModuleName()
-                val composeModuleClassName = ClassName.get(moduleClassName.packageName(), fileName)
+  override fun process(
+    annotations: MutableSet<out TypeElement>?,
+    roundEnv: RoundEnvironment
+  ): Boolean {
+    val injectedTypes = getInjectedTypes(roundEnv) ?: return false
+    val moduleClassName = getModuleClassName(roundEnv) ?: return false
+    userModuleName = moduleClassName
+    val fileName = moduleClassName.toComposeInjectModuleName()
+    val composeModuleClassName = ClassName.get(moduleClassName.packageName(), fileName)
 
-                val type = TypeSpec.classBuilder(composeModuleClassName)
-                    .addAnnotation(Module::class.java)
-                    .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
-                    .addMethod(
-                        MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build()
-                    )
-                    .addMethods(
-                        injectedTypes.map {
-                            val typeClassName = ClassName.get(it)
-                            MethodSpec.methodBuilder(
-                                "bind_${
-                                    Regex("\\.").replace(
-                                        it.qualifiedName,
-                                        "_"
-                                    )
-                                }"
-                            )
-                                .addAnnotation(Binds::class.java)
-                                .addAnnotation(IntoMap::class.java)
-                                .addAnnotation(ComposeInjectMap::class.java)
-                                .addAnnotation(
-                                    AnnotationSpec.builder(ClassKey::class.java)
-                                        .addMember("value", "\$T.class", typeClassName)
-                                        .build()
-                                )
-                                .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
-                                .addParameter(typeClassName, "element")
-                                .returns(Any::class.java)
-                                .build()
-                        }
-                    )
-                    .build()
-                val fileSpec = JavaFile.builder(moduleClassName.packageName(), type)
-                    .build()
-                fileSpec.writeTo(processingEnv.filer)
-            }
-//        if (roundEnv.processingOver() && userModuleName != null) {
-//            val userModuleName = userModuleName!!
-//            val composeModuleClassName = ClassName.get(
-//                userModuleName.packageName(),
-//                userModuleName.toComposeInjectModuleName()
-//            )
-//            val userModule =
-//                processingEnv.elementUtils.getTypeElement(userModuleName.canonicalName())
-//            val annotationValue = userModule.getAnnotation("dagger.Module")!!
-//                .elementValues
-//                .entries
-//                .firstOrNull { it.key.simpleName.contentEquals("includes") }
-//                ?.value as? Attribute.Array
-//            val referencesGeneratedModule = annotationValue?.values?.map { TypeName.get(it.type) }
-//                ?.any { it == composeModuleClassName } ?: false
-//            if (!referencesGeneratedModule) {
-//                error(
-//                    "@ComposeInjectModule's @Module must include ${composeModuleClassName.simpleName()}",
-//                    userModule
-//                )
-//                return false
-//            }
-//        }
-        return true
-    }
+    val type = buildModule(composeModuleClassName, injectedTypes)
+    val fileSpec = JavaFile.builder(moduleClassName.packageName(), type)
+      .build()
+    fileSpec.writeTo(processingEnv.filer)
 
-    private fun ClassName.toComposeInjectModuleName() =
-        "ComposeInject_${simpleNames().joinToString(separator = ".")}"
-
-    private fun error(message: String, element: Element?) {
-        processingEnv.messager.printMessage(
-            Diagnostic.Kind.ERROR,
-            message,
-            element
+    if (roundEnv.processingOver() && userModuleName != null) {
+      val userModuleName = userModuleName!!
+      val composeModuleClassName = ClassName.get(
+        userModuleName.packageName(),
+        userModuleName.toComposeInjectModuleName()
+      )
+      val userModule =
+        processingEnv.elementUtils.getTypeElement(userModuleName.canonicalName())
+      val annotationValue = userModule.getAnnotation("dagger.Module")!!
+        .elementValues
+        .entries
+        .firstOrNull { it.key.simpleName.contentEquals("includes") }
+        ?.value
+        ?.toMirrorValue() as? MirrorValue.Array
+      val referencesGeneratedModule = annotationValue?.filterIsInstance<MirrorValue.Type>()
+        ?.map { TypeName.get(it) }
+        ?.any { it == composeModuleClassName } ?: false
+      if (!referencesGeneratedModule) {
+        error(
+          "@ComposeInjectModule's @Module must include ${composeModuleClassName.simpleName()}",
+          userModule
         )
+        return false
+      }
     }
+    return true
+  }
+
+  private fun buildModule(
+    composeModuleClassName: ClassName?,
+    injectedTypes: List<TypeElement>
+  ) = TypeSpec.classBuilder(composeModuleClassName)
+    .addAnnotation(Module::class.java)
+    .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+    .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+    .addMethods(
+      injectedTypes.map {
+        val typeClassName = ClassName.get(it)
+        MethodSpec.methodBuilder(
+          "bind_${
+            Regex("\\.").replace(
+              it.qualifiedName,
+              "_"
+            )
+          }"
+        )
+          .addAnnotation(Binds::class.java)
+          .addAnnotation(IntoMap::class.java)
+          .addAnnotation(ComposeInjectMap::class.java)
+          .addAnnotation(
+            AnnotationSpec.builder(ClassKey::class.java)
+              .addMember("value", "\$T.class", typeClassName)
+              .build()
+          )
+          .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+          .addParameter(typeClassName, "element")
+          .returns(Any::class.java)
+          .build()
+      }
+    )
+    .build()
+
+  private fun getModuleClassName(roundEnv: RoundEnvironment): ClassName? {
+    val modules = roundEnv.getElementsAnnotatedWith(ComposeInjectModule::class.java)
+    if (modules.size > 1) {
+      error("@ComposeInjectModule can only be applied to single Module", null)
+      return null
+    }
+    val module = modules.firstOrNull() ?: return null
+    if (module.kind != ElementKind.CLASS) {
+      error("Can only be applied to class", module)
+      return null
+    }
+    if (module.getAnnotation("dagger.Module") == null) {
+      error("Can only be applied to Dagger Module", module)
+      return null
+    }
+    return ClassName.get(module as TypeElement)
+  }
+
+  private fun getInjectedTypes(roundEnv: RoundEnvironment): List<TypeElement>? {
+    return roundEnv.getElementsAnnotatedWith(ComposeInject::class.java)
+      .map { element ->
+        if (element.kind != ElementKind.CLASS) {
+          error("Can only be applied to class", element)
+          return null
+        }
+        if (
+          element.enclosedElements.none {
+            it.kind == ElementKind.CONSTRUCTOR &&
+                it.getAnnotation(Inject::class.java) != null
+          }
+        ) {
+          error("Can only be applied to class with @Inject constructor", element)
+          return null
+        }
+        element as TypeElement
+      }
+  }
+
+  private fun ClassName.toComposeInjectModuleName() =
+    "ComposeInject_${simpleNames().joinToString(separator = ".")}"
+
+  private fun error(message: String, element: Element?) {
+    processingEnv.messager.printMessage(
+      Diagnostic.Kind.ERROR,
+      message,
+      element
+    )
+  }
 }
 
 private fun AnnotatedConstruct.getAnnotation(qualifiedName: String): AnnotationMirror? {
-    return annotationMirrors.firstOrNull {
-        (it.annotationType.asElement() as? TypeElement)?.qualifiedName.contentEquals(qualifiedName)
-    }
+  return annotationMirrors.firstOrNull {
+    (it.annotationType.asElement() as? TypeElement)?.qualifiedName.contentEquals(qualifiedName)
+  }
 }
