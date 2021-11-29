@@ -26,9 +26,9 @@ inline fun <reified T : Any> rememberInject(): T {
 }
 
 @Composable
-inline fun <reified T : Any> rememberInject(key1: Any?): T {
+inline fun <reified T : Any> rememberInject(key: Any?): T {
   val injector = LocalInjector.current
-  return remember(key1) { injector.get(T::class.java) }
+  return remember(key) { injector.get(T::class.java) }
 }
 
 @Composable

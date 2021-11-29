@@ -54,11 +54,6 @@ val sourcesJar = tasks.register<Jar>("sourcesJar") {
 
 tasks.dokkaJavadoc.configure {
   outputDirectory.set(buildDir.resolve("javadoc"))
-  dokkaSourceSets {
-    configureEach {
-      sourceRoot(file("src"))
-    }
-  }
 }
 
 
