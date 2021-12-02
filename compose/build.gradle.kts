@@ -1,7 +1,10 @@
+version = LibraryCoordinates.LIBRARY_VERSION
+
 plugins {
-  id("com.android.application")
+  id("com.android.library")
   kotlin("android")
-  kotlin("kapt")
+  id("maven-publish")
+  publish
 }
 
 android {
@@ -11,14 +14,10 @@ android {
     minSdk = Sdk.MIN_SDK_VERSION
     targetSdk = Sdk.TARGET_SDK_VERSION
 
-    applicationId = AppCoordinates.APP_ID
-    versionCode = AppCoordinates.APP_VERSION_CODE
-    versionName = AppCoordinates.APP_VERSION_NAME
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    consumerProguardFiles("consumer-rules.pro")
   }
-  buildFeatures {
-    viewBinding = true
-  }
+
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -53,22 +52,15 @@ android {
 
 dependencies {
   implementation(kotlin("stdlib-jdk7"))
-  implementation(project(":compose"))
-
   implementation(project(":annotation"))
-  kapt(project(":processor"))
+  implementation(project(":processor"))
 
   implementation(Dagger.Core)
-  kapt(Dagger.Compiler)
+
   implementation(Compose.Runtime)
-  implementation(Compose.Material)
-  implementation(Activity.Core)
-  implementation(Activity.Compose)
 
   testImplementation(TestingLib.Junit)
 
+  androidTestImplementation(AndroidTestingLib.ANDROIDX_TEST_RUNNER)
   androidTestImplementation(AndroidTestingLib.ANDROIDX_TEST_EXT_JUNIT)
-  androidTestImplementation(AndroidTestingLib.ANDROIDX_TEST_EXT_JUNIT_KTX)
-  androidTestImplementation(AndroidTestingLib.ANDROIDX_TEST_RULES)
-  androidTestImplementation(AndroidTestingLib.ESPRESSO_CORE)
 }
