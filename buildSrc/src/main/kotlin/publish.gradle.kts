@@ -63,7 +63,7 @@ afterEvaluate {
     repositories {
       maven {
         name = "nexus"
-        url = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
+        url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2")
         credentials {
           username = "NEXUS_USERNAME".byProperty
           password = "NEXUS_PASSWORD".byProperty
@@ -71,7 +71,7 @@ afterEvaluate {
       }
       maven {
         name = "snapshot"
-        url = uri("https://oss.sonatype.org/content/repositories/snapshots")
+        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots")
         credentials {
           username = "NEXUS_USERNAME".byProperty
           password = "NEXUS_PASSWORD".byProperty
