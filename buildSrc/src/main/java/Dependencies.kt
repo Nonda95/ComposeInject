@@ -7,28 +7,26 @@ object Sdk {
 object Versions {
   const val ANDROIDX_TEST_EXT = "1.1.3"
   const val ANDROIDX_TEST = "1.4.0"
-  const val APPCOMPAT = "1.3.0"
-  const val CONSTRAINT_LAYOUT = "2.0.4"
-  const val CORE_KTX = "1.6.0"
   const val ESPRESSO_CORE = "3.4.0"
   const val JUNIT = "4.13.2"
   const val KTLINT = "0.42.0"
 }
 
 object Activity {
-  const val Version = "1.3.1"
+  const val Version = "1.4.0"
   const val Core = "androidx.appcompat:appcompat:$Version"
   const val Compose = "androidx.activity:activity-compose:$Version"
 }
 
 object Dagger {
-  const val Version = "2.39.1"
+  const val Version = "2.40.5"
   const val Core = "com.google.dagger:dagger:$Version"
   const val Compiler = "com.google.dagger:dagger-compiler:$Version"
 }
 
 object Compose {
-  const val Version = "1.0.4"
+  const val Version = "1.1.0-rc01"
+  const val CompilerVersion = "1.1.0-rc02"
   const val Runtime = "androidx.compose.runtime:runtime:$Version"
   const val Material = "androidx.compose.material:material:$Version"
 }
@@ -38,8 +36,8 @@ object JavaX {
 }
 
 object AutoService {
-  const val Core = "com.google.auto.service:auto-service:1.0"
-  const val Processor = "com.google.auto.service:auto-service:1.0"
+  const val Core = "com.google.auto.service:auto-service:1.0.1"
+  const val Processor = "com.google.auto.service:auto-service:1.0.1"
 }
 
 object JavaPoet {

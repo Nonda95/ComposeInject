@@ -31,7 +31,7 @@ android {
   }
 
   composeOptions {
-    kotlinCompilerExtensionVersion = Compose.Version
+    kotlinCompilerExtensionVersion = Compose.CompilerVersion
   }
 
   buildTypes {
