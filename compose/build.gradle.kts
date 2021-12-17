@@ -57,7 +57,7 @@ dependencies {
 
   implementation(Dagger.Core)
 
-  implementation(Compose.Runtime)
+  api(Compose.Runtime)
 
   testImplementation(TestingLib.Junit)
 
