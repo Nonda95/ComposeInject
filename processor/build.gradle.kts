@@ -8,14 +8,16 @@ plugins {
   publish
 }
 
+kapt.includeCompileClasspath = false
+
 dependencies {
   implementation(kotlin("stdlib-jdk7"))
   implementation(project(":annotation"))
 
   implementation(Dagger.Core)
+  compileOnly(AutoService.Core)
   kapt(AutoService.Processor)
 
-  implementation(AutoService.Core)
   implementation(JavaPoet.Core)
 
   testImplementation(TestingLib.Junit)
